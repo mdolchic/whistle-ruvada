@@ -305,6 +305,28 @@ async function fetchTextWithTimeout(url) {
   }
 }
 
+async function fetchJsonWithTimeout(url) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), NEWS_FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return response.json();
+  } catch {
+    return null;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 function getNodeText(node, selector) {
   const element = node.querySelector(selector);
   return element?.textContent?.trim() || "";
@@ -413,6 +435,12 @@ function mergeNewsItems(items) {
 }
 
 async function fetchLiveNews() {
+  const serverNewsPayload = await fetchJsonWithTimeout(`/api/live-news?_=${Date.now()}`);
+  const serverNewsItems = normalizeNewsItems(serverNewsPayload);
+  if (serverNewsItems.length) {
+    return serverNewsItems;
+  }
+
   const settledPrimaryFeeds = await Promise.allSettled(NEWS_FEED_SOURCES.map(fetchFeedNews));
   const primaryRssItems = settledPrimaryFeeds.flatMap((result) =>
     result.status === "fulfilled" ? result.value : [],
