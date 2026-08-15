@@ -181,6 +181,10 @@ function syncBettingButton(button, label) {
 }
 
 function updateBettingCards() {
+  document.querySelectorAll("[data-whistle-promo='bet']").forEach((promo) => {
+    promo.remove();
+  });
+
   const allButtons = Array.from(document.querySelectorAll("a"));
 
   for (const button of allButtons) {
@@ -190,24 +194,13 @@ function updateBettingCards() {
       syncBettingButton(button, label);
     }
 
-    if (label === "Начать ставить") {
-      const card = button.closest("div.rounded-3xl");
-      if (card && !card.querySelector("[data-whistle-promo='bet']")) {
-        const promo = document.createElement("p");
-        promo.dataset.whistlePromo = "bet";
-        promo.className = "mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-soft";
-        promo.textContent = "Промокод WHIST50 — бонус до 300 рублей";
-        card.appendChild(promo);
-      }
-    }
-
     if (label === "Получить бонус") {
       const card = button.closest("div.rounded-3xl");
       const descriptions = card?.querySelectorAll("p");
       const description = descriptions?.[descriptions.length - 1];
-      if (description && !description.innerHTML.includes("WHIST50")) {
+      if (description && description.innerHTML.includes("WHIST50")) {
         description.innerHTML =
-          'Бонусные предложения доступны по правилам акции. Промокод <span class="font-semibold text-[#f3e2bf]">WHIST50</span> дает бонус до <span class="font-semibold text-[#f3e2bf]">300 рублей</span>. Проверьте условия бонусов до активации.';
+          "Бонусные предложения доступны по правилам акции. Проверьте условия бонусов до активации.";
       }
     }
   }
