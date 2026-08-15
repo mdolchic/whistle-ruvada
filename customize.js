@@ -1,4 +1,6 @@
-const BETTING_URL = "https://fastgame777.xyz/0MA3XW";
+const BETTING_URL = "https://getruvada.com/?promo=dd7bee7a-6766-481c-88be-a9087ca1c0b1&target=register&click_id=ru_8";
+const TOP_PROMO_TEXT = "Лучшая платформа для игры";
+const LEGACY_PROMO_TEXT = "Промокод WHIST50 — бонус до 300 рублей";
 const BETTING_LABELS = [
   "Зарегистрироваться",
   "Получить бонус",
@@ -74,6 +76,10 @@ function createPromoBanner() {
 function syncPromoBannerContent(promoBanner) {
   if (promoBanner.querySelector("[data-whistle-promo-button='top']")) {
     const button = promoBanner.querySelector("[data-whistle-promo-button='top']");
+    const text = promoBanner.querySelector("span");
+    if (text) {
+      text.textContent = TOP_PROMO_TEXT;
+    }
     if (button) {
       button.href = BETTING_URL;
       button.target = "_self";
@@ -86,7 +92,7 @@ function syncPromoBannerContent(promoBanner) {
   content.className = "mx-auto flex max-w-6xl flex-col items-center justify-center gap-3 sm:flex-row";
 
   const text = document.createElement("span");
-  text.textContent = "Промокод WHIST50 — бонус до 300 рублей";
+  text.textContent = TOP_PROMO_TEXT;
 
   const button = document.createElement("a");
   button.dataset.whistlePromoButton = "top";
@@ -115,7 +121,7 @@ function insertPromoBanner() {
   let promoBanner =
     siteFrame.querySelector(":scope > [data-whistle-promo='top']") ||
     Array.from(siteFrame.children).find((element) =>
-      element.textContent?.includes("Промокод WHIST50"),
+      element.textContent?.includes(LEGACY_PROMO_TEXT) || element.textContent?.includes(TOP_PROMO_TEXT),
     );
 
   if (!promoBanner) {
@@ -128,6 +134,18 @@ function insertPromoBanner() {
   syncPromoBannerContent(promoBanner);
 }
 
+function updateTopPromoCopies() {
+  const headerPromo = document.querySelector("header span.xl\\:inline-flex");
+  if (headerPromo?.textContent?.includes(LEGACY_PROMO_TEXT)) {
+    headerPromo.textContent = TOP_PROMO_TEXT;
+  }
+
+  const newsPromo = document.querySelector("section[aria-label='Главные спортивные новости'] .rounded-\\[1\\.5rem\\]");
+  if (newsPromo?.textContent?.includes(LEGACY_PROMO_TEXT)) {
+    newsPromo.textContent = TOP_PROMO_TEXT;
+  }
+}
+
 function watchPromoBanner() {
   const siteFrame = document.querySelector(".site-frame");
   if (!siteFrame || siteFrame.dataset.whistlePromoObserver === "active") {
@@ -136,6 +154,7 @@ function watchPromoBanner() {
 
   const observer = new MutationObserver(() => {
     insertPromoBanner();
+    updateTopPromoCopies();
   });
 
   observer.observe(siteFrame, { childList: true });
@@ -600,6 +619,7 @@ function initWhistleCustomizations() {
   updateMeta();
   updateBranding();
   insertPromoBanner();
+  updateTopPromoCopies();
   watchPromoBanner();
   updateBettingCards();
   watchBettingCards();
@@ -614,10 +634,13 @@ function initWhistleCustomizations() {
   window.requestAnimationFrame(() => {
     window.requestAnimationFrame(() => {
       insertPromoBanner();
+      updateTopPromoCopies();
       updateBettingCards();
     });
   });
 
+  window.setTimeout(updateTopPromoCopies, 1000);
+  window.setTimeout(updateTopPromoCopies, 3000);
   window.setTimeout(updateBettingCards, 1000);
   window.setTimeout(updateBettingCards, 3000);
   window.setTimeout(refreshLiveNewsTicker, 1500);
@@ -631,5 +654,6 @@ if (document.readyState === "loading") {
 
 window.addEventListener("load", () => {
   insertPromoBanner();
+  updateTopPromoCopies();
   updateBettingCards();
 });
