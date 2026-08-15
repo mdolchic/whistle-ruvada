@@ -12,7 +12,7 @@ const BETTING_LABELS = [
 ];
 const NEWS_PLACEHOLDER_IMAGE = "/images/news-placeholder.svg";
 const NEWS_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
-const NEWS_FETCH_TIMEOUT_MS = 6000;
+const NEWS_FETCH_TIMEOUT_MS = 10000;
 const NEWS_FEED_SOURCES = [
   {
     url: "https://www.sport-express.ru/services/materials/news/football/se/",
@@ -22,11 +22,17 @@ const NEWS_FEED_SOURCES = [
     url: "https://www.sport-express.ru/services/materials/news/se/",
     source: "Спорт-Экспресс",
   },
+];
+const NEWS_BACKUP_FEED_SOURCES = [
   {
     url: "https://lenta.ru/rss/news/sport",
     source: "Lenta.ru Спорт",
+    proxy: true,
   },
 ];
+let latestNewsItems = [];
+let newsRefreshPromise = null;
+let newsRepaintTimeoutId = null;
 
 function updateMeta() {
   document.title = "Whistle — ставки на спорт, аналитика матчей и ответственная игра";
@@ -367,7 +373,9 @@ function parseRssNews(xmlText, source) {
 }
 
 async function fetchFeedNews(source) {
-  const feedUrls = [createFreshUrl(source.url), createCorsProxyUrl(source.url)];
+  const feedUrls = source.proxy
+    ? [createCorsProxyUrl(source.url)]
+    : [createFreshUrl(source.url), createCorsProxyUrl(source.url)];
 
   for (const feedUrl of feedUrls) {
     const xmlText = await fetchTextWithTimeout(feedUrl);
@@ -405,13 +413,22 @@ function mergeNewsItems(items) {
 }
 
 async function fetchLiveNews() {
-  const settledFeeds = await Promise.allSettled(NEWS_FEED_SOURCES.map(fetchFeedNews));
-  const rssItems = settledFeeds.flatMap((result) =>
+  const settledPrimaryFeeds = await Promise.allSettled(NEWS_FEED_SOURCES.map(fetchFeedNews));
+  const primaryRssItems = settledPrimaryFeeds.flatMap((result) =>
     result.status === "fulfilled" ? result.value : [],
   );
 
-  if (rssItems.length) {
-    return mergeNewsItems(rssItems);
+  if (primaryRssItems.length) {
+    return mergeNewsItems(primaryRssItems);
+  }
+
+  const settledBackupFeeds = await Promise.allSettled(NEWS_BACKUP_FEED_SOURCES.map(fetchFeedNews));
+  const backupRssItems = settledBackupFeeds.flatMap((result) =>
+    result.status === "fulfilled" ? result.value : [],
+  );
+
+  if (backupRssItems.length) {
+    return mergeNewsItems(backupRssItems);
   }
 
   const response = await fetch("/api/sports-news", { cache: "no-store" });
@@ -500,8 +517,10 @@ function renderNewsTickerItems(items) {
     return;
   }
 
+  latestNewsItems = items;
   const doubledItems = [...items, ...items];
   track.replaceChildren(...doubledItems.map(createNewsCard));
+  track.dataset.whistleLiveNews = "ready";
 }
 
 function createNewsSectionCard(item, index) {
@@ -580,9 +599,23 @@ function renderNewsSectionItems(items) {
   }
 
   grid.replaceChildren(...items.slice(0, 6).map(createNewsSectionCard));
+  grid.dataset.whistleLiveNews = "ready";
 }
 
 async function refreshLiveNewsTicker() {
+  if (newsRefreshPromise) {
+    return newsRefreshPromise;
+  }
+
+  newsRefreshPromise = refreshLiveNewsTickerOnce();
+  try {
+    return await newsRefreshPromise;
+  } finally {
+    newsRefreshPromise = null;
+  }
+}
+
+async function refreshLiveNewsTickerOnce() {
   renderNewsTickerNotice(
     "Обновляем спортивную ленту",
     "Показываем свежие новости сразу после ответа источника.",
@@ -608,6 +641,38 @@ async function refreshLiveNewsTicker() {
   }
 }
 
+function repaintLiveNewsIfNeeded() {
+  if (!latestNewsItems.length) {
+    return;
+  }
+
+  const track = document.querySelector(".news-ticker-track");
+  if (track && track.dataset.whistleLiveNews !== "ready") {
+    renderNewsTickerItems(latestNewsItems);
+  }
+
+  const grid = document.querySelector("#sports-news .grid");
+  if (grid && grid.dataset.whistleLiveNews !== "ready") {
+    renderNewsSectionItems(latestNewsItems);
+  }
+}
+
+function scheduleLiveNewsRepaint() {
+  window.clearTimeout(newsRepaintTimeoutId);
+  newsRepaintTimeoutId = window.setTimeout(repaintLiveNewsIfNeeded, 120);
+}
+
+function watchLiveNewsSections() {
+  const siteFrame = document.querySelector(".site-frame") || document.body;
+  if (!siteFrame || siteFrame.dataset.whistleNewsObserver === "active") {
+    return;
+  }
+
+  const observer = new MutationObserver(scheduleLiveNewsRepaint);
+  observer.observe(siteFrame, { childList: true, subtree: true });
+  siteFrame.dataset.whistleNewsObserver = "active";
+}
+
 function initWhistleCustomizations() {
   updateMeta();
   updateBranding();
@@ -616,6 +681,7 @@ function initWhistleCustomizations() {
   watchPromoBanner();
   updateBettingCards();
   watchBettingCards();
+  watchLiveNewsSections();
   refreshLiveNewsTicker();
   window.setInterval(refreshLiveNewsTicker, NEWS_REFRESH_INTERVAL_MS);
 
@@ -629,6 +695,7 @@ function initWhistleCustomizations() {
       insertPromoBanner();
       updateTopPromoCopies();
       updateBettingCards();
+      repaintLiveNewsIfNeeded();
     });
   });
 
@@ -637,6 +704,7 @@ function initWhistleCustomizations() {
   window.setTimeout(updateBettingCards, 1000);
   window.setTimeout(updateBettingCards, 3000);
   window.setTimeout(refreshLiveNewsTicker, 1500);
+  window.setTimeout(refreshLiveNewsTicker, 5000);
 }
 
 if (document.readyState === "loading") {
@@ -649,4 +717,6 @@ window.addEventListener("load", () => {
   insertPromoBanner();
   updateTopPromoCopies();
   updateBettingCards();
+  repaintLiveNewsIfNeeded();
+  refreshLiveNewsTicker();
 });
