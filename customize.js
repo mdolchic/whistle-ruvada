@@ -30,6 +30,62 @@ const NEWS_BACKUP_FEED_SOURCES = [
     proxy: true,
   },
 ];
+const NEWS_FALLBACK_ITEMS = [
+  {
+    id: "fallback-cska-fakel",
+    title: "ЦСКА — «Факел»: Мусаев сыграет с первых минут, Лусиано и Баринов — в запасе",
+    source: "Спорт-Экспресс Футбол",
+    url: "https://www.sport-express.ru/football/rfpl/news/cska-fakel-startovye-sostavy-na-match-4-tura-rpl-15-avgusta-2026-2447370/",
+    publishedAt: "Sat, 15 Aug 2026 15:12:00 +0300",
+    imageUrl: NEWS_PLACEHOLDER_IMAGE,
+    description: "Стали известны стартовые составы на матч между ЦСКА и «Факелом» в 4-м туре РПЛ.",
+  },
+  {
+    id: "fallback-dinamo-enas",
+    title: "Нападающий минского «Динамо» Энас оценил работу с тренером Брылиным",
+    source: "Спорт-Экспресс",
+    url: "https://www.sport-express.ru/hockey/khl/news/napadayuschiy-minskogo-dinamo-sem-enas-podelilsya-vpechatleniyami-ot-raboty-s-glavnym-trenerom-sergeem-brylinym-2447369/",
+    publishedAt: "Sat, 15 Aug 2026 15:03:00 +0300",
+    imageUrl: NEWS_PLACEHOLDER_IMAGE,
+    description: "Сэм Энас поделился впечатлениями от работы с главным тренером минского «Динамо» Сергеем Брылиным.",
+  },
+  {
+    id: "fallback-makhachev-garry",
+    title: "Ислам Махачев — Иэн Мачадо Гэрри: во сколько начнется бой",
+    source: "Спорт-Экспресс",
+    url: "https://www.sport-express.ru/martial/mma/ufc/news/mahachev-gerri-vo-skolko-boy-po-msk-vremeni-vremya-nachala-po-regionam-rossii-2447362/",
+    publishedAt: "Sat, 15 Aug 2026 15:00:02 +0300",
+    imageUrl: NEWS_PLACEHOLDER_IMAGE,
+    description: "Вечер ММА пройдет в Филадельфии в ночь на 16 августа.",
+  },
+  {
+    id: "fallback-borussia-roma",
+    title: "«Боруссия Дортмунд» — «Рома»: время начала товарищеского матча",
+    source: "Спорт-Экспресс Футбол",
+    url: "https://www.sport-express.ru/football/friendly/news/borussiya-dortmund-roma-vo-skolko-nachalo-tovarischeskogo-matcha-gde-smotret-translyaciyu-15-avgusta-2026-2447239/",
+    publishedAt: "Sat, 15 Aug 2026 15:00:01 +0300",
+    imageUrl: NEWS_PLACEHOLDER_IMAGE,
+    description: "«Боруссия Дортмунд» и «Рома» сыграют товарищеский матч 15 августа.",
+  },
+  {
+    id: "fallback-tekstilshchik-nizhny",
+    title: "«Текстильщик» — «Нижний Новгород»: прямая трансляция матча ФНЛ",
+    source: "Спорт-Экспресс Футбол",
+    url: "https://www.sport-express.ru/football/rus_d1/news/tekstilschik-nizhniy-novgorod-pryamaya-translyaciya-matcha-fnl-gde-smotret-onlayn-video-15-avgusta-2026-2446986/",
+    publishedAt: "Sat, 15 Aug 2026 15:00:00 +0300",
+    imageUrl: NEWS_PLACEHOLDER_IMAGE,
+    description: "«Текстильщик» и «Нижний Новгород» сыграют в Первой лиге 15 августа.",
+  },
+  {
+    id: "fallback-ovechkin",
+    title: "Овечкин поздравил «Спорт-Экспресс» с 35-летием",
+    source: "Спорт-Экспресс",
+    url: "https://www.sport-express.ru/hockey/nhl/news/aleksandr-ovechkin-pozdravil-sport-ekspress-s-35-letiem-2447367/",
+    publishedAt: "Sat, 15 Aug 2026 14:56:00 +0300",
+    imageUrl: NEWS_PLACEHOLDER_IMAGE,
+    description: "Нападающий «Вашингтона» Александр Овечкин поздравил издание с 35-летием.",
+  },
+];
 let latestNewsItems = [];
 let newsRefreshPromise = null;
 let newsRepaintTimeoutId = null;
@@ -459,12 +515,7 @@ async function fetchLiveNews() {
     return mergeNewsItems(backupRssItems);
   }
 
-  const response = await fetch("/api/sports-news", { cache: "no-store" });
-  if (!response.ok) {
-    return [];
-  }
-
-  return normalizeNewsItems(await response.json());
+  return [];
 }
 
 function createNewsCard(item) {
@@ -630,6 +681,15 @@ function renderNewsSectionItems(items) {
   grid.dataset.whistleLiveNews = "ready";
 }
 
+function renderFallbackNews() {
+  if (latestNewsItems.length) {
+    return;
+  }
+
+  renderNewsTickerItems(NEWS_FALLBACK_ITEMS);
+  renderNewsSectionItems(NEWS_FALLBACK_ITEMS);
+}
+
 async function refreshLiveNewsTicker() {
   if (newsRefreshPromise) {
     return newsRefreshPromise;
@@ -644,28 +704,27 @@ async function refreshLiveNewsTicker() {
 }
 
 async function refreshLiveNewsTickerOnce() {
-  renderNewsTickerNotice(
-    "Обновляем спортивную ленту",
-    "Показываем свежие новости сразу после ответа источника.",
-  );
-
   try {
     const items = await fetchLiveNews();
     if (!items.length) {
-      renderNewsTickerNotice(
-        "Внешняя лента временно недоступна",
-        "Попробуем обновить новости снова автоматически.",
-      );
+      if (!latestNewsItems.length) {
+        renderNewsTickerNotice(
+          "Внешняя лента временно недоступна",
+          "Попробуем обновить новости снова автоматически.",
+        );
+      }
       return;
     }
 
     renderNewsTickerItems(items);
     renderNewsSectionItems(items);
   } catch {
-    renderNewsTickerNotice(
-      "Внешняя лента временно недоступна",
-      "Попробуем обновить новости снова автоматически.",
-    );
+    if (!latestNewsItems.length) {
+      renderNewsTickerNotice(
+        "Внешняя лента временно недоступна",
+        "Попробуем обновить новости снова автоматически.",
+      );
+    }
   }
 }
 
@@ -710,6 +769,7 @@ function initWhistleCustomizations() {
   updateBettingCards();
   watchBettingCards();
   watchLiveNewsSections();
+  renderFallbackNews();
   refreshLiveNewsTicker();
   window.setInterval(refreshLiveNewsTicker, NEWS_REFRESH_INTERVAL_MS);
 
