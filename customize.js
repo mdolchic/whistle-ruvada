@@ -97,8 +97,8 @@ function updateMeta() {
     ["meta[property='og:title']", "content", "Whistle — ставки на спорт, аналитика матчей и ответственная игра"],
     ["meta[name='twitter:title']", "content", "Whistle — ставки на спорт, аналитика матчей и ответственная игра"],
     ["meta[property='og:site_name']", "content", "Whistle"],
-    ["meta[property='og:url']", "content", "https://whistle.pro"],
-    ["link[rel='canonical']", "href", "https://whistle.pro"],
+    ["meta[property='og:url']", "content", "https://sport-clan.vercel.app/"],
+    ["link[rel='canonical']", "href", "https://sport-clan.vercel.app/"],
   ];
 
   for (const [selector, attribute, value] of metaMappings) {
